@@ -1,25 +1,21 @@
 package com.example.demo;
 
+
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/sort")
 @CrossOrigin(origins = "http://localhost:3000")
 public class SortController {
 
+    // Lógica para gerar números aleatórios
     @GetMapping("/generate-random/{quantNumeros}")
     public List<Integer> generateRandom(@PathVariable int quantNumeros) {
         Random random = new Random();
@@ -30,90 +26,64 @@ public class SortController {
         return numbers;
     }
 
+    // Lógica para carregar arquivo
     @PostMapping("/load-file")
-    public List<Integer> loadFile(@RequestBody String fileName) {
+    public List<Integer> loadFile(@RequestParam("file") MultipartFile file) {
         List<Integer> numbers = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("O arquivo enviado está vazio.");
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                numbers.add(Integer.parseInt(line.trim()));
+                try {
+                    numbers.add(Integer.parseInt(line.trim()));
+                } catch (NumberFormatException e) {
+                    System.err.println("Ignorando linha não numérica: " + line);
+                }
             }
         } catch (IOException e) {
-            // Você pode retornar um erro para o frontend se o arquivo não for encontrado
             throw new RuntimeException("Erro ao ler o arquivo: " + e.getMessage());
         }
         return numbers;
     }
 
-
-    //Endpoint para cada algoritmo de ordenação
-
-    @PostMapping("/insersao")
-    public ResultadoOrdenacao insersaoDireta(@RequestBody List<Integer> vetor) {
-        // Lógica para criar VetorItens a partir da lista
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
+    // --- Endpoints de ordenação consolidado ---
+    @PostMapping("/{algoritmo}")
+    public ResultadoOrdenacao sortAlgorithm(@PathVariable String algoritmo, @RequestBody List<Integer> vetorOriginal) {
+        VetorItens vetorItens = new VetorItens(vetorOriginal.size());
+        for (Integer num : vetorOriginal) {
             vetorItens.inserir(new Item(num));
         }
-        return vetorItens.inserçãoDireta();
-    }
 
-    @PostMapping("/selecao")
-    public ResultadoOrdenacao selecaoDireta(@RequestBody List<Integer> vetor) {
-        // Lógica para criar VetorItens a partir da lista
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
-            vetorItens.inserir(new Item(num));
-        }
-        return vetorItens.seleçãoDireta();
-    }
+        ResultadoOrdenacao resultado;
 
-    @PostMapping("/bubble")
-    public ResultadoOrdenacao bubbleSort(@RequestBody List<Integer> vetor) {
-        // Lógica para criar VetorItens a partir da lista
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
-            vetorItens.inserir(new Item(num));
+        switch (algoritmo) {
+            case "insersao":
+                resultado = vetorItens.inserçãoDireta();
+                break;
+            case "selecao":
+                resultado = vetorItens.seleçãoDireta();
+                break;
+            case "bubble":
+                resultado = vetorItens.bubblesort();
+                break;
+            case "shaker":
+                resultado = vetorItens.shakersort();
+                break;
+            case "shell":
+                resultado = vetorItens.shellSort();
+                break;
+            case "heap":
+                resultado = vetorItens.heapSort();
+                break;
+            case "quick":
+                resultado = vetorItens.quicksort();
+                break;
+            default:
+                throw new IllegalArgumentException("Algoritmo não encontrado: " + algoritmo);
         }
-        return vetorItens.bubblesort();
-    }
 
-    @PostMapping("/shaker")
-    public ResultadoOrdenacao shakerSort(@RequestBody List<Integer> vetor) {
-        // Lógica para criar VetorItens a partir da lista
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
-            vetorItens.inserir(new Item(num));
-        }
-        return vetorItens.shakersort();
-    }
-
-    @PostMapping("/shell")
-    public ResultadoOrdenacao shellSort(@RequestBody List<Integer> vetor) {
-        // Lógica para criar VetorItens a partir da lista
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
-            vetorItens.inserir(new Item(num));
-        }
-        return vetorItens.shellSort();
-    }
-
-    @PostMapping("/heap")
-    public ResultadoOrdenacao heapSort(@RequestBody List<Integer> vetor) {
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
-            vetorItens.inserir(new Item(num));
-        }
-        return vetorItens.heapSort();
-    }
-
-    @PostMapping("/quick")
-    public ResultadoOrdenacao quickSort(@RequestBody List<Integer> vetor) {
-        // Lógica para criar VetorItens a partir da lista
-        VetorItens vetorItens = new VetorItens(vetor.size());
-        for (Integer num : vetor) {
-            vetorItens.inserir(new Item(num));
-        }
-        return vetorItens.quicksort();
+        return resultado;
     }
 }
